@@ -1,0 +1,74 @@
+server:
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true
+      persistentVolumeClaim:
+        enabled: true
+        size: 10Gi
+        storageClass: nfs-storage-tools
+        accessModes:
+          - ReadWriteMany
+        name: vault-data-pvc
+
+  auditStorage:
+    enabled: true
+    mountPath: /vault/audit
+    existingClaim: vault-audit-pvc
+
+  extraVolumes:
+    - name: rotation-pvc
+      persistentVolumeClaim:
+        claimName: vault-rotation-pvc
+
+  extraVolumeMounts:
+    - name: rotation-pvc
+      mountPath: /vault/rotated-secrets
+
+  auditLogs:
+    enabled: true
+    options:
+      type: file
+      options:
+        file_path: "/vault/audit/audit.log"
+
+  policies:
+    - name: myapp-policy
+      rules: |
+        path "secret/data/myapp/*" {
+          capabilities = ["create", "read", "update", "delete", "list"]
+        }
+
+  agent:
+    enabled: true
+    inject: true
+    config: |
+      auto_auth {
+        method "kubernetes" {
+          mount_path = "auth/kubernetes"
+          config = {
+            role = "demo"
+          }
+        }
+        sink "file" {
+          config = {
+            path = "/vault/rotated-secrets/myapp-token"
+          }
+        }
+      }
+      cache {
+        use_auto_auth_token = true
+      }
+      listener "tcp" {
+        address = "127.0.0.1:8200"
+        tls_disable = true
+      }
+
+injector:
+  enabled: true
+  autoReload: true
+
+metrics:
+  enabled: true
