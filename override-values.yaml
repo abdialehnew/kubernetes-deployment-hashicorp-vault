@@ -66,6 +66,14 @@ server:
         tls_disable = true
       }
 
+  ui:
+    enabled: true
+
+  service:
+    enabled: true
+    type: LoadBalancer
+    port: 8200
+
 injector:
   enabled: true
   autoReload: true
